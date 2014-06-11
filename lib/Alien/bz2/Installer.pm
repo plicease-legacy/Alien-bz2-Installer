@@ -447,6 +447,7 @@ sub build_install
       die "make install failed" if $?;
       mkdir(_catdir($prefix, 'dll'));
       File::Copy::copy('libbz2.so.1.0.6', _catfile($prefix, 'dll', 'libbz2.so.1.0.6'));
+      eval { chmod 0755, _catfile($prefix, 'dll', 'libbz2.so.1.0.6') };
     }
     
     my $build = bless {
@@ -513,25 +514,36 @@ sub dlls
   
   unless(defined $self->{dlls} && defined $self->{dll_dir})
   {
-    require DynaLoader;
-    my $path = DynaLoader::dl_findfile(grep /^-l/, @{ $self->libs});
-    die "unable to find dynamic library" unless defined $path;
-    my($vol, $dirs, $file) = File::Spec->splitpath($path);
-    if($^O eq 'openbsd')
+    if($^O eq 'cygwin')
     {
-      # on openbsd we get the .a file back, so have to scan
-      # for .so.#.# as there is no .so symlink
-      opendir(my $dh, $dirs);
-      $self->{dlls} = [grep /^libbz2.so/, readdir $dh];
+      opendir my $dh, '/usr/bin';
+      $self->{dlls}    = [grep /^cygbz2-[0-9]+\.dll$/i, readdir $dh];
+      $self->{dll_dir} = [];
+      $prefix = '/usr/bin';
       closedir $dh;
     }
     else
     {
-      $self->{dlls} = [ $file ];
+      require DynaLoader;
+      my $path = DynaLoader::dl_findfile(grep /^-l/, @{ $self->libs});
+      die "unable to find dynamic library" unless defined $path;
+      my($vol, $dirs, $file) = File::Spec->splitpath($path);
+      if($^O eq 'openbsd')
+      {
+        # on openbsd we get the .a file back, so have to scan
+        # for .so.#.# as there is no .so symlink
+        opendir(my $dh, $dirs);
+        $self->{dlls} = [grep /^libbz2.so/, readdir $dh];
+        closedir $dh;
+      }
+      else
+      {
+        $self->{dlls} = [ $file ];
+      }
+      $self->{dll_dir} = [];
+      $prefix = File::Spec->catpath($vol, $dirs);
+      $prefix =~ s{\\}{/}g;
     }
-    $self->{dll_dir} = [];
-    $prefix = File::Spec->catpath($vol, $dirs);
-    $prefix =~ s{\\}{/}g;
   }
   
   map { _catfile($prefix, @{ $self->{dll_dir} }, $_) } @{ $self->{dlls} };
@@ -636,7 +648,7 @@ sub test_compile_run
     {
       $self->{error} = "child died with signal" . ($? & 127);
     }
-    elsif($?)
+    else
     {
       $self->{error} = "child exited with value " . ($? >> 8);
     }
