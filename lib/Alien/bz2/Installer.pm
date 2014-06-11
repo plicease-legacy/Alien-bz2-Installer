@@ -120,6 +120,7 @@ sub build_requires
   if($^O eq 'MSWin32')
   {
     $prereqs{'Archive::Zip'} = 0;
+    $prereqs{'Alien::o2dll'} = 0;
   }
   else
   {
@@ -209,7 +210,186 @@ sub system_install
   $build;
 }
 
-# TODO: build_install
+=head2 build_install
+
+ my $installer = Alien::bz2::Installer->build_install( '/usr/local', %options );
+
+B<NOTE:> using this method may (and probably does) require modules
+returned by the L<build_requires|Alien::bz2::Installer>
+method.
+
+Build and install bz2 into the given directory.  If there
+is an error an exception will be thrown.  On a successful build, an
+instance of L<Alien::bz2::Installer> will be returned.
+
+These options may be passed into build_install:
+
+=over 4
+
+=item tar
+
+Filename where the bz2 source tar is located.
+If not specified the latest version will be downloaded
+from the Internet.
+
+=item dir
+
+Empty directory to be used to extract the bz2
+source and to build from.
+
+=item test
+
+Specifies the test type that should be used to verify the integrity
+of the build after it has been installed.  Generally this should be
+set according to the needs of your module.  Should be one of:
+
+=over 4
+
+=item compile
+
+use L<test_compile_run|Alien::bz2::Installer#test_compile_run> to verify.
+This is the default.
+
+=item ffi
+
+use L<test_ffi|Alien::bz2::Installer#test_ffi> to verify
+
+=item both
+
+use both
+L<test_compile_run|Alien::bz2::Installer#test_compile_run>
+and
+L<test_ffi|Alien::bz2::Installer#test_ffi>
+to verify
+
+=back
+
+=back
+
+=cut
+
+sub _msys
+{
+  my($sub) = @_;
+  require Config;
+  if($^O eq 'MSWin32')
+  {
+    if($Config::Config{cc} !~ /cl(\.exe)?$/i)
+    {
+      require Alien::MSYS;
+      return Alien::MSYS::msys(sub{ $sub->('make') });
+    }
+  }
+  $sub->($Config::Config{make});
+}
+
+sub build_install
+{
+  my($class, $prefix, %options) = @_;
+  
+  $options{test} ||= 'compile';
+  die "test must be one of compile, ffi or both"
+    unless $options{test} =~ /^(compile|ffi|both)$/;
+  die "need an install prefix" unless $prefix;
+  
+  $prefix =~ s{\\}{/}g;
+  
+  my $dir = $options{dir} || do { require File::Temp; File::Temp::tempdir( CLEANUP => 1 ) };
+  
+  require Cwd;
+  my $save = Cwd::getcwd();
+  
+  my $build = eval {
+    if($^O eq 'MSWin32')
+    {
+      require Archive::Zip;
+      
+      my $zip = Archive::Zip->new;
+      $zip->read(scalar $options{tar} || $class->fetch);
+      chdir $dir;
+      $zip->extractTree;
+    }
+    else
+    {
+      require Archive::Tar;
+      my $tar = Archive::Tar->new;
+      $tar->read($options{tar} || $class->fetch);
+      chdir $dir;
+      $tar->extract;
+    }
+      
+    chdir do {
+    opendir my $dh, '.';
+      my(@list) = grep !/^\./,readdir $dh;
+      close $dh;
+      die "unable to find source in build root" if @list == 0;
+      die "confused by multiple entries in the build root" if @list > 1;
+      $list[0];
+    };
+      
+    if($^O eq 'MSWin32')
+    {
+      open my $fh, '<', 'Makefile';
+      my $makefile = do { local $/; <$fh> }; 
+      close $fh;
+      
+      $makefile =~ s/\to2dll/\t$^X -MAlien::o2dll=o2dll o2dll.pl/g;
+      
+      open $fh, '>', 'Makefile';
+      print $fh $makefile;
+      close $fh;
+      
+      open $fh, '>', 'o2dll.pl';
+      print $fh "use Alien::o2dll qw( o2dll );\n";
+      print $fh "o2dll(\@ARGV)\n";
+      close $fh;
+      
+      _msys(sub {
+        system 'make', 'all';
+        die "make all failed" if $?;
+        system 'make', 'install', "PREFIX=$prefix";
+        die "make install failed" if $?;
+      });
+    }
+    else
+    {
+      require Config;
+      require File::Spec;
+      require File::Copy;
+      my $make = $Config::Config{make};
+      system $make, -f => 'Makefile-libbz2_so';
+      die "make -f Makefile-libbz2_so failed" if $?;
+      system $make, 'all';
+      die "make all failed" if $?;
+      system $make, 'install', "PREFIX=$prefix";
+      die "make install failed" if $?;
+      mkdir(_catdir($prefix, 'dll'));
+      File::Copy::copy('libbz2.so.1.0.6', _catfile($prefix, 'dll', 'libbz2.so.1.0.6'));
+    }
+    
+    my $build = bless {
+      cflags  => [ "-I" . _catdir($prefix, 'include') ],
+      libs    => [ "-L" . _catdir($prefix, 'lib'), '-lbz2' ],
+      prefix  => $prefix,
+      dll_dir => [ 'dll' ],
+      dlls    => do {
+        opendir(my $dh, File::Spec->catdir($prefix, 'dll'));
+        [grep { ! -l File::Spec->catfile($prefix, 'dll', $_) } grep { /\.so/ || /\.(dll|dylib)$/ } grep !/^\./, readdir $dh];
+      },
+    }, $class;
+    
+    $build->test_compile_run || die $build->error if $options{test} =~ /^(compile|both)$/;
+    $build->test_ffi         || die $build->error if $options{test} =~ /^(ffi|both)$/;
+    
+    $build;
+  };
+  
+  my $error = $@;
+  chdir $save;
+  die $error if $error;
+  $build;
+}
+
 
 =head1 ATTRIBUTES
 
