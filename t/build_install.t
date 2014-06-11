@@ -59,7 +59,7 @@ my $prefix = tempdir( CLEANUP => 1 );
 my $type = eval { require FFI::Raw } ? 'both' : 'compile';
 note "type = $type";
 
-foreach my $version (qw( 1.0.6 ))
+foreach my $version ($^O eq 'MSWin32' ? '1.0.5' : '1.0.6')
 {
   subtest "build version $version" => sub {
     plan tests => 5;

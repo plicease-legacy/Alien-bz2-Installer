@@ -379,17 +379,20 @@ sub build_install
   my $dir = $options{dir} || do { require File::Temp; File::Temp::tempdir( CLEANUP => 1 ) };
   
   require Cwd;
+  require File::Spec;
   my $save = Cwd::getcwd();
   
   my $build = eval {
     if($^O eq 'MSWin32')
     {
       require Archive::Zip;
-      
       my $zip = Archive::Zip->new;
       $zip->read(scalar $options{tar} || $class->fetch);
       chdir $dir;
+      mkdir 'bzip2-1.0.5';
+      chdir 'bzip2-1.0.5';
       $zip->extractTree;
+      chdir(_catdir(qw( src bzip2 1.0.5 bzip2-1.0.5 )));
     }
     else
     {
@@ -398,16 +401,15 @@ sub build_install
       $tar->read($options{tar} || $class->fetch);
       chdir $dir;
       $tar->extract;
+      chdir do {
+      opendir my $dh, '.';
+        my(@list) = grep !/^\./,readdir $dh;
+        close $dh;
+        die "unable to find source in build root" if @list == 0;
+        die "confused by multiple entries in the build root" if @list > 1;
+        $list[0];
+      };
     }
-      
-    chdir do {
-    opendir my $dh, '.';
-      my(@list) = grep !/^\./,readdir $dh;
-      close $dh;
-      die "unable to find source in build root" if @list == 0;
-      die "confused by multiple entries in the build root" if @list > 1;
-      $list[0];
-    };
       
     if($^O eq 'MSWin32')
     {
@@ -430,13 +432,15 @@ sub build_install
         system 'make', 'all';
         die "make all failed" if $?;
         system 'make', 'install', "PREFIX=$prefix";
+        $DB::single = 1;
         die "make install failed" if $?;
       });
+      mkdir(_catdir($prefix, 'dll'));
+      File::Copy::copy('bzip2.dll', _catfile($prefix, 'dll', 'bzip2.dll'));
     }
     else
     {
       require Config;
-      require File::Spec;
       require File::Copy;
       my $make = $Config::Config{make};
       system $make, -f => 'Makefile-libbz2_so';
@@ -700,7 +704,7 @@ sub test_ffi
       return $self->{version} = $1;
     }
   }
-  $self->{error} = 'BZ2_bzlibVersion not found';
+  $self->{error} = 'BZ2_bzlibVersion not found (ffi)';
   return;
 }
 

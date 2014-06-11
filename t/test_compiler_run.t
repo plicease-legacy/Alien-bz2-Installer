@@ -9,7 +9,7 @@ BEGIN {
     unless eval q{ use Devel::CheckLib; 1 };
 }
 
-plan skip_app => 'test requires bz2 already installed'
+plan skip_all => 'test requires bz2 already installed'
   unless check_lib( lib => 'bz2' );
 
 plan tests => 1;
