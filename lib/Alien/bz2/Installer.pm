@@ -18,7 +18,89 @@ sub _catdir {
   $path;
 }
 
+=head1 SYNOPSIS
+
+Build.PL
+
+ # as an optional dep
+ use Alien::bz2::Installer;
+ use Module::Build;
+ 
+ my %build_args;
+ 
+ my $installer = eval { Alien::bz2::Installer->system_install };
+ if($installer)
+ {
+   $build_args{extra_compiler_flags} = $installer->cflags,
+   $build_args{extra_linker_flags}   = $installer->libs,
+ }
+ 
+ my $build = Module::Build->new(%build_args);
+ $build->create_build_script;
+
+Build.PL
+
+ # require 3.0
+ use Alien::bz2::Installer;
+ use Module::Build;
+ 
+ my $installer = eval {
+   my $system_installer = Alien::bz2::Installer->system_install;
+   die "we require 1.0.6 or better"
+     if $system->version !~ /^([0-9]+)\.([0-9]+)\.([0-9]+)/ && $1 >= 1 && ($3 >= 6 || $1 > 1);
+   $system_installer;
+      # reasonably assumes that build_install will never download
+      # a version older that 1.0.6
+ } || Alien::bz2::Installer->build_install("dir");
+ 
+ my $build = Module::Build->new(
+   extra_compiler_flags => $installer->cflags,
+   extra_linker_flags   => $installer->libs,
+ );
+ $build->create_build_script;
+
+FFI::Raw
+
+ # as an optional dep
+ use Alien::bz2::Installer;
+ use FFI::Raw;
+ 
+ eval {
+   my($dll) = Alien::bz2::Installer->system_install->dlls;
+   FFI::Raw->new($dll, 'BZ2_bzlibVersion', FFI::Raw::str);
+ };
+ if($@)
+ {
+   # handle it if bz2 is not available
+ }
+
+=head1 DESCRIPTION
+
+If you just want to compress or decompress bzip2 data in Perl you
+probably want one of L<Compress::Bzip2>, L<Compress::Raw::Bzip2>
+or L<IO::Compress::Bzip2>.
+
+This distribution contains the logic for finding existing bz2
+installs, and building new ones.  If you do not care much about the
+version of bz2 that you use, and bz2 is not an optional
+requirement, then you are probably more interested in using
+L<Alien::bz2>.
+
+Where L<Alien::bz2::Installer> is useful is when you have
+specific version requirements (say you require 3.0.x but 2.7.x
+will not do), but would still like to use the system bz2
+if it is available.
+
 =head1 CLASS METHODS
+
+Class methods can be executed without creating an instance of
+L<Alien::bz2::Installer>, and generally used to query
+status of bz2 availability (either via the system or the
+internet).  Methods that discover a system bz2 or build
+a one from source code on the Internet will generally return
+an instance of L<Alien::bz2::Installer> which can be
+queried to retrieve the settings needed to interact with 
+bz2 via XS or L<FFI::Raw>.
 
 =head2 versions_available
 
@@ -620,3 +702,19 @@ or L<test_ffi|Alien::bz2::Installer#test_ffi>.
 sub error { $_[0]->{error} }
 
 1;
+
+=head1 SEE ALSO
+
+=over 4
+
+=item L<Alien::bz2>
+
+=item L<Compress::Bzip2>
+
+=item L<Compress::Raw::Bzip2>
+
+=item L<IO::Compress::Bzip2>
+
+=back
+
+=cut
