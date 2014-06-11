@@ -203,6 +203,7 @@ sub build_requires
   {
     $prereqs{'Archive::Zip'} = 0;
     $prereqs{'Alien::o2dll'} = 0;
+    $prereqs{'Alien::MSYS'}  = 0;
   }
   else
   {

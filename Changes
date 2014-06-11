@@ -1,6 +1,7 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+  - Alien::MSYS is a build_requires on MSWin32
 
 0.01      2014-06-11 07:59:11 -0400
   - initial version
