@@ -600,8 +600,8 @@ sub test_compile_run
   my($self, %opt) = @_;
   
   delete $self->{error};
-  $self->{quiet} = 1 unless defined $self->{quiet};
-  my $cbuilder = $opt{cbuilder} || do { require ExtUtils::CBuilder; ExtUtils::CBuilder->new(quiet => $opt->{quiet}) };
+  $opt{quiet} = 1 unless defined $opt{quiet};
+  my $cbuilder = $opt{cbuilder} || do { require ExtUtils::CBuilder; ExtUtils::CBuilder->new(quiet => $opt{quiet}) };
   
   unless($cbuilder->have_compiler)
   {
