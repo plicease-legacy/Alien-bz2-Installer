@@ -433,11 +433,11 @@ sub build_install
         system 'make', 'all';
         die "make all failed" if $?;
         system 'make', 'install', "PREFIX=$prefix";
-        $DB::single = 1;
         die "make install failed" if $?;
       });
       mkdir(_catdir($prefix, 'dll'));
       File::Copy::copy('bzip2.dll', _catfile($prefix, 'dll', 'bzip2.dll'));
+      File::Copy::copy('libbz2.dll.a', _catfile($prefix, 'dll', 'libbz2.dll.a'));
     }
     else
     {
