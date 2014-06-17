@@ -2,6 +2,10 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.03      2014-06-17 03:46:50 -0400
+  - install MSWin32 needs the libbz2.dll.a file
+    needed for libarchive dll
+
 0.02      2014-06-11 15:32:01 -0400
   - Alien::MSYS is a build_requires on MSWin32
 
