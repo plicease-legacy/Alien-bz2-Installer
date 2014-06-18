@@ -16,7 +16,4 @@ perl:
   - "5.16"
   - "5.18"
 
-env:
-  - ALIEN_BZ2_INSTALLER_EXTRA_TESTS=1
-
 script: dzil test -v
