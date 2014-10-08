@@ -2,6 +2,9 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.04      2014-10-08 14:26:42 -0400
+  - fixes for Strawberry 5.20
+
 0.03      2014-06-17 03:46:50 -0400
   - install MSWin32 needs the libbz2.dll.a file
     needed for libarchive dll
