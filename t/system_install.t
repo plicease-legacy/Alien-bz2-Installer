@@ -15,6 +15,8 @@ plan tests => 2;
 
 my $type = eval { require FFI::Raw } ? 'both' : 'compile';
 
+$type = 'compile' if DynaLoader::dl_findfile('-lbz2') =~ /\.a$/;
+
 note "type = $type";
 
 my $installer = Alien::bz2::Installer->system_install( test => $type );
