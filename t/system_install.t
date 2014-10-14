@@ -2,6 +2,7 @@ use strict;
 use warnings;
 use Test::More;
 use Alien::bz2::Installer;
+use DynaLoader;
 
 BEGIN {
   plan skip_all => 'test requires Devel::CheckLib'
